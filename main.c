@@ -83,7 +83,6 @@ main(int argc, char *argv[])
 	double best_distance, distance;
 	static coord_t base_coords = {BASE_LAT, BASE_LONG};
 
-	CoordsDegreesToRadians(&base_coords);
 	best_distance = 0;
 	verbose = 0;
 	errflag = 0;
@@ -103,9 +102,10 @@ main(int argc, char *argv[])
 	    
 	if (errflag)
 	{
-		fprintf(stderr, "usage: %s [-v] [-a baselat -n baselong] lat long\n", argv[0]);
+		fprintf(stderr, "usage: %s [-v] baselat baselong (default %f %f)\n", argv[0], base_coords.lat, base_coords.lng);
 		exit(1);
 	}
+	CoordsDegreesToRadians(&base_coords);
 
 	while (fgets(buf, sizeof(buf), stdin) && (len = strlen(buf)) > 2)
 	{
