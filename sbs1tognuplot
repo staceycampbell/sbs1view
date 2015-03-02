@@ -1,0 +1,16 @@
+:
+lat=`fgrep BASE_LAT basecoords.h | awk '{ print $3 }'`
+lng=`fgrep BASE_LONG basecoords.h | awk '{ print $3 }'`
+if [ "$1" = '' ]
+then
+	echo usage: $0 basename '< basestation:30003'
+	exit 1
+fi
+egrep '^MSG,3,' | fgrep '#' | \
+	sed -e 's/,,,0,0,0,.*//' -e 's/.*,,,//' -e 's/,/ /' | \
+	awk ' { print $2 " " $1 } ' | \
+	tee $1-points.dat | \
+	sed -e "s/^/$lng $lat /" > $1-vectors.dat
+echo "plot '$1-points.dat' using 1:2, '$1-vectors.dat' u 1:2:(\$3-\$1):(\$4-\$2) with vectors nohead, 'circle.dat' using 2:1:3 with circles lt rgb 'black'"
+echo "plot '$1-vectors.dat' u 1:2:(\$3-\$1):(\$4-\$2) with vectors nohead, 'circle.dat' using 2:1:3 with circles lt rgb 'black'"
+echo "plot '$1-points.dat' using 1:2, 'circle.dat' using 2:1:3 with circles lt rgb 'black'"
