@@ -6,7 +6,8 @@
 
 #include "basecoords.h"
 
-typedef struct coord_t {
+typedef struct coord_t
+{
 	double lat;
 	double lng;
 } coord_t;
@@ -22,10 +23,10 @@ DegreesToRadians(double d)
 }
 
 static double
-CalcDistance(const coord_t *a, const coord_t *b)
+CalcDistance(const coord_t * a, const coord_t * b)
 {
 	double x, y, d;
-	static const double r = 6371; // earth radius km
+	static const double r = 6371;	// earth radius km
 
 	x = (a->lng - b->lng) * cos((a->lat + b->lat) / 2.0);
 	y = b->lat - a->lat;
@@ -35,7 +36,7 @@ CalcDistance(const coord_t *a, const coord_t *b)
 }
 
 static void
-CoordsDegreesToRadians(coord_t *a)
+CoordsDegreesToRadians(coord_t * a)
 {
 	a->lat = DegreesToRadians(a->lat);
 	a->lng = DegreesToRadians(a->lng);
@@ -46,7 +47,7 @@ ProcessMsg3(const coord_t * base_coords, const char buf[512], char notes[512], d
 {
 	int i, altitude, comma_count;
 	coord_t remote_coords;
-	
+
 	// MSG,3,333,3560,A5DBE5,3660,2015/02/26,14:01:33.635,2015/02/26,14:01:33.635,,8850,,,34.20128,-118.44160,,,0,0,0,0
 	i = 0;
 	comma_count = 0;
@@ -78,28 +79,34 @@ ProcessMsg3(const coord_t * base_coords, const char buf[512], char notes[512], d
 int
 main(int argc, char *argv[])
 {
-	int c, verbose, errflag, len;
+	int c, verbose, errflag, len, distance_limit, suppress;
 	char buf[512], notes[512];
 	double best_distance, distance;
-	static coord_t base_coords = {BASE_LAT, BASE_LONG};
+	static coord_t base_coords = { BASE_LAT, BASE_LONG };
 
 	best_distance = 0;
 	verbose = 0;
 	errflag = 0;
-	while ((c = getopt(argc, argv, "v")) != EOF)
+	distance_limit = -1;
+	while ((c = getopt(argc, argv, "vd:")) != EOF)
 		switch (c)
 		{
-		case 'v' :
+		case 'v':
 			++verbose;
-		default :
+			break;
+		case 'd':
+			distance_limit = strtoul(optarg, 0, 0);
+			break;
+		default:
 			errflag = 1;
+			break;
 		}
-	if (! errflag && argc - optind == 2)
+	if (!errflag && argc - optind == 2)
 	{
 		sscanf(argv[optind], "%lf", &base_coords.lat);
 		sscanf(argv[optind + 1], "%lf", &base_coords.lng);
 	}
-	    
+
 	if (errflag)
 	{
 		fprintf(stderr, "usage: %s [-v] baselat baselong (default %f %f)\n", argv[0], base_coords.lat, base_coords.lng);
@@ -111,15 +118,20 @@ main(int argc, char *argv[])
 	{
 		buf[len - 2] = '\0';
 		notes[0] = '\0';
+		suppress = 0;
 		if (strncmp(buf, "MSG,3,", 6) == 0)
 			if (ProcessMsg3((const coord_t *)&base_coords, buf, notes, &distance) >= 0)
-				if (distance >= best_distance)
+			{
+				suppress = distance_limit > 0 && distance >= distance_limit;
+				if (!suppress && distance >= best_distance)
 				{
 					best_distance = distance;
 					strcat(notes, " (best!)");
 				}
-	
-		printf("%-130s %c %s\n", buf, notes[0] ? '#' : ' ', notes);
+			}
+
+		if (!suppress)
+			printf("%-130s %c %s\n", buf, notes[0] ? '#' : ' ', notes);
 		fflush(stdout);
 	}
 
