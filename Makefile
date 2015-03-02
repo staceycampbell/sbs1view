@@ -21,7 +21,7 @@ sbs1tokml: sbs1tokml.o
 sbs1view: main.o
 	$(CC) $(LDFLAGS) -o sbs1view main.o $(LDLIBS)
 
-sbs1tokml.o main.o: basecoords.h
+sbs1tokml.o main.o circle.dat: basecoords.h
 
 circle.dat:
 	rm -f circle.dat
