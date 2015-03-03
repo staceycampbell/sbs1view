@@ -43,9 +43,32 @@ CoordsDegreesToRadians(coord_t * a)
 }
 
 static int
-ProcessMsg3(const coord_t * base_coords, const char buf[512], char notes[512], double *distance)
+ProcessMsg6(const char buf[512], char notes[512], int *altitude)
 {
-	int i, altitude, comma_count;
+	int i, comma_count;
+
+	// MSG,6,333,11345,ABDDC4,11445,2015/03/02,16:00:30.564,2015/03/02,16:00:30.564,,15025,,,,,,7743,0,0,0,0
+	strcpy(notes, "bad MSG,6!");
+	i = 0;
+	comma_count = 0;
+	strcpy(notes, "bad MSG,3!");
+	while (buf[i] != 0 && comma_count < 11)
+	{
+		comma_count += buf[i] == ',';
+		++i;
+	}
+	if (comma_count < 11)
+		return -1;
+	sscanf(&buf[i], "%d,", altitude);
+	notes[0] = '\0';
+
+	return 0;
+}
+
+static int
+ProcessMsg3(const coord_t * base_coords, const char buf[512], char notes[512], double *distance, int *altitude)
+{
+	int i, comma_count;
 	coord_t remote_coords;
 
 	// MSG,3,333,3560,A5DBE5,3660,2015/02/26,14:01:33.635,2015/02/26,14:01:33.635,,8850,,,34.20128,-118.44160,,,0,0,0,0
@@ -59,7 +82,7 @@ ProcessMsg3(const coord_t * base_coords, const char buf[512], char notes[512], d
 	}
 	if (comma_count < 11)
 		return -1;
-	sscanf(&buf[i], "%d,", &altitude);
+	sscanf(&buf[i], "%d,", altitude);
 	++i;
 	while (buf[i] != 0 && comma_count < 14)
 	{
@@ -79,7 +102,7 @@ ProcessMsg3(const coord_t * base_coords, const char buf[512], char notes[512], d
 int
 main(int argc, char *argv[])
 {
-	int c, verbose, errflag, len, distance_limit, suppress;
+	int c, verbose, errflag, len, distance_limit, suppress, altitude, altitude_limit;
 	char buf[512], notes[512];
 	double best_distance, distance;
 	static coord_t base_coords = { BASE_LAT, BASE_LONG };
@@ -88,7 +111,8 @@ main(int argc, char *argv[])
 	verbose = 0;
 	errflag = 0;
 	distance_limit = -1;
-	while ((c = getopt(argc, argv, "vd:")) != EOF)
+	altitude_limit = -1;
+	while ((c = getopt(argc, argv, "a:vd:")) != EOF)
 		switch (c)
 		{
 		case 'v':
@@ -96,6 +120,9 @@ main(int argc, char *argv[])
 			break;
 		case 'd':
 			distance_limit = strtoul(optarg, 0, 0);
+			break;
+		case 'a' :
+			altitude_limit =  strtoul(optarg, 0, 0);
 			break;
 		default:
 			errflag = 1;
@@ -117,18 +144,24 @@ main(int argc, char *argv[])
 	while (fgets(buf, sizeof(buf), stdin) && (len = strlen(buf)) > 2)
 	{
 		buf[len - 2] = '\0';
+		strtok(buf, " #");
 		notes[0] = '\0';
 		suppress = 0;
 		if (strncmp(buf, "MSG,3,", 6) == 0)
-			if (ProcessMsg3((const coord_t *)&base_coords, buf, notes, &distance) >= 0)
+		{
+			if (ProcessMsg3((const coord_t *)&base_coords, buf, notes, &distance, &altitude) >= 0)
 			{
-				suppress = distance_limit > 0 && distance >= distance_limit;
+				suppress = (distance_limit > 0 && distance > distance_limit) || (altitude_limit > 0 && altitude >= altitude_limit);
 				if (!suppress && distance >= best_distance)
 				{
 					best_distance = distance;
 					strcat(notes, " (best!)");
 				}
 			}
+		}
+		else if (strncmp(buf, "MSG,6,", 6) == 0)
+			if (ProcessMsg6(buf, notes, &altitude) >= 0)
+				suppress = altitude_limit > 0 && altitude >= altitude_limit;
 
 		if (!suppress)
 			printf("%-130s %c %s\n", buf, notes[0] ? '#' : ' ', notes);
