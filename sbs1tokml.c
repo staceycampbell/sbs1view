@@ -133,7 +133,7 @@ main(int argc, char *argv[])
 					best_distance = distance;
 					strcat(notes, " (best!)");
 				}
-				if (distance < 2000)
+				if (distance < 30 && altitude < 10000)
 				{
 					printf("<Placemark> \n");
 					printf(" <name></name> \n");
