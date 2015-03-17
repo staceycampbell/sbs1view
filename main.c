@@ -22,17 +22,47 @@ DegreesToRadians(double d)
 	return r;
 }
 
+/*::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::: */
+/*::  This function converts radians to decimal degrees             : */
+/*::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::: */
+double
+rad2deg(double rad)
+{
+	return (rad * 180.0 / M_PI);
+}
+
 static double
 CalcDistance(const coord_t * a, const coord_t * b)
 {
-	double x, y, d;
-	static const double r = 6371;	// earth radius km
 
-	x = (a->lng - b->lng) * cos((a->lat + b->lat) / 2.0);
-	y = b->lat - a->lat;
-	d = sqrt(x * x + y * y) * r;
+	double lat1, lon1, lat2, lon2;
+	char unit;
+	double theta, dist;
 
-	return d;
+	lat1 = a->lat;
+	lon1 = a->lng;
+	lat2 = b->lat;
+	lon2 = b->lng;
+	unit = 'K';
+
+	theta = lon1 - lon2;
+	dist = sin(lat1) * sin(lat2) + cos(lat1) * cos(lat2) * cos(theta);
+	dist = acos(dist);
+	dist = rad2deg(dist);
+	dist = dist * 60 * 1.1515;
+	switch (unit)
+	{
+	case 'M':
+		break;
+	default:
+	case 'K':
+		dist = dist * 1.609344;
+		break;
+	case 'N':
+		dist = dist * 0.8684;
+		break;
+	}
+	return dist;
 }
 
 static void
